@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: beaverdev-bot
+    runtime: node
+    plan: free
+    buildCommand: bun install && bun run build
+    startCommand: bun run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_PRIVATE_DATA
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PORT
+        value: 5124
+
