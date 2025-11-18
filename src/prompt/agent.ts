@@ -109,43 +109,54 @@ ${userMessage}
 **Your Task:**
 Answer the user's question using ONLY the retrieved knowledge chunks from AGENTS.md and other sources. Be DIRECT, CLEAR, and ACTIONABLE.
 
-**Response Format (STRICT JSON ONLY - no markdown code blocks):**
-{
-  "answer": "Your direct, well-formatted answer using markdown. Start with the core answer immediately, then provide details and code examples.",
-  "references": ["chunk1_id", "chunk2_id"]
-}
+**CRITICAL: Response Format**
 
-**Response Style Guidelines:**
-1. **Start with the direct answer** - Don't bury the lead
-2. **Use clear formatting:**
-   - Bold headings for sections: **Setup Steps:**
-   - Code blocks for examples: \`\`\`typescript ... \`\`\`
-   - Bullet points for lists
-   - Line breaks for readability
-3. **Provide complete examples** when relevant (AGENTS.md has tons!)
-4. **Be encouraging** but keep it real
-5. **Keep your sass** but don't sacrifice clarity
+You MUST return ONLY a JSON object in this EXACT format (no code blocks, just raw JSON). Example:
+
+{ "answer": "Your answer text here", "references": ["chunk1", "chunk2"] }
+
+**Answer Formatting Guidelines:**
+- Use markdown for formatting (**bold**, bullet points, etc.)
+- For code examples, use inline code \`like this\` or code blocks 
+- Start with direct answer, then provide details
+- Be conversational and helpful
+- Include specific examples from AGENTS.md when relevant
+
+**IMPORTANT: Code Examples**
+When including code examples in your answer, escape them properly or use inline code notation. DO NOT break the JSON structure.
+
+Example of good answer format:
+"To create a bot, you need: **1. Credentials** Get APP_PRIVATE_DATA and JWT_SECRET. **2. Initialize** Use makeTownsBot() function. **3. Add handlers** Register event handlers like onMessage."
 
 **Critical Rules:**
-- Return ONLY the raw JSON object (no markdown code blocks around it!)
+- Return valid JSON only (no extra text before/after)
 - ONLY use information from the retrieved chunks (primarily from AGENTS.md)
-- Include chunk IDs in references array
-- If you can't answer with the retrieved knowledge, say so honestly
-- AGENTS.md is your bible - it has the complete @towns-protocol/bot documentation`
+- Include relevant chunk IDs in references array
+- If you can't answer with retrieved knowledge, say so honestly
+- Keep answers under 1000 words`
 }
 
 /**
- * Validate and parse AI response
+ * Validate and parse AI response with robust error handling
  */
 export function validateResponse(content: string): AIResponse {
   try {
     // Remove any leading/trailing whitespace
     let jsonContent = content.trim()
     
-    // Try to extract JSON from markdown code blocks if present
-    const jsonMatch = jsonContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
-    if (jsonMatch) {
-      jsonContent = jsonMatch[1].trim()
+    // Method 1: Try to extract JSON from markdown code blocks
+    const codeBlockMatch = jsonContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+    if (codeBlockMatch) {
+      jsonContent = codeBlockMatch[1].trim()
+    }
+
+    // Method 2: Try to find JSON object boundaries
+    if (!jsonContent.startsWith('{')) {
+      const jsonStart = jsonContent.indexOf('{')
+      const jsonEnd = jsonContent.lastIndexOf('}')
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        jsonContent = jsonContent.substring(jsonStart, jsonEnd + 1)
+      }
     }
 
     // Parse the JSON
@@ -155,23 +166,36 @@ export function validateResponse(content: string): AIResponse {
       throw new Error('Missing or invalid "answer" field')
     }
 
+    // Success! Return the parsed response
     return {
       answer: parsed.answer.trim(),
       references: Array.isArray(parsed.references) ? parsed.references : [],
     }
   } catch (error) {
     console.error('❌ Failed to parse AI response:', error)
-    console.error('Raw content:', content.substring(0, 500))
+    console.error('📄 Full raw content:', content)
 
-    // Fallback: If content looks like a direct answer, use it
-    if (content && !content.startsWith('{')) {
+    // Fallback 1: If content looks like a direct answer (not JSON), use it as-is
+    if (content && !content.includes('{') && !content.includes('}')) {
+      console.log('⚠️ Using content as direct answer (no JSON detected)')
       return {
         answer: content.trim(),
         references: [],
       }
     }
 
-    // Last resort error message
+    // Fallback 2: Try to extract just the answer text from broken JSON
+    const answerMatch = content.match(/"answer"\s*:\s*"([^"]+(?:\\.[^"]*)*)"/)
+    if (answerMatch) {
+      console.log('⚠️ Extracted answer from broken JSON')
+      return {
+        answer: answerMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"'),
+        references: [],
+      }
+    }
+
+    // Last resort: Error message
+    console.error('❌ All parsing methods failed')
     return {
       answer: '🦫 Oops! My circuits got crossed. The response format was wonky. Could you try asking that again?',
       references: [],

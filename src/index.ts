@@ -92,26 +92,45 @@ interface EthPriceCache {
 }
 
 let ethPriceCache: EthPriceCache | null = null
-const PRICE_CACHE_DURATION = 5 * 60 * 1000 // 5 minutes in milliseconds
+const PRICE_CACHE_DURATION = 60 * 60 * 1000 // 1 hour in milliseconds (was 5 min - too frequent!)
 
 /**
  * Fetch current ETH price from CoinGecko API (free tier)
- * Caches result for 5 minutes to avoid rate limiting
+ * Caches result for 1 hour to avoid rate limiting
  */
 async function getEthPrice(): Promise<number> {
   const now = Date.now()
 
-  // Return cached price if still valid
+  // Return cached price if still valid (even if stale, use it if recent)
   if (ethPriceCache && now - ethPriceCache.timestamp < PRICE_CACHE_DURATION) {
-    console.log(`💵 Using cached ETH price: $${ethPriceCache.price}`)
+    console.log(`💵 Using cached ETH price: $${ethPriceCache.price} (age: ${Math.floor((now - ethPriceCache.timestamp) / 60000)}min)`)
     return ethPriceCache.price
   }
 
   try {
     console.log('💵 Fetching current ETH price from CoinGecko...')
     const response = await fetch(
-      'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'
+      'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd',
+      {
+        headers: {
+          'Accept': 'application/json',
+        },
+      }
     )
+
+    if (response.status === 429) {
+      // Rate limited! Use stale cache or fallback
+      console.warn('⚠️ CoinGecko rate limit (429). Using cached/fallback price.')
+      if (ethPriceCache) {
+        console.log(`💵 Using stale cache: $${ethPriceCache.price} (${Math.floor((now - ethPriceCache.timestamp) / 60000)}min old)`)
+        // Extend cache time since we can't refresh
+        ethPriceCache.timestamp = now
+        return ethPriceCache.price
+      }
+      // No cache, use reasonable default
+      console.log('💵 No cache available, using fallback: $3000')
+      return 3000
+    }
 
     if (!response.ok) {
       throw new Error(`CoinGecko API error: ${response.status}`)
@@ -132,9 +151,11 @@ async function getEthPrice(): Promise<number> {
   } catch (error) {
     console.error('❌ Failed to fetch ETH price from CoinGecko:', error)
 
-    // Fallback to cached price if available
+    // Fallback to cached price if available (even if old)
     if (ethPriceCache) {
-      console.log(`⚠️ Using stale cached price: $${ethPriceCache.price}`)
+      console.log(`⚠️ Using stale cached price: $${ethPriceCache.price} (${Math.floor((now - ethPriceCache.timestamp) / 60000)}min old)`)
+      // Extend cache time since we can't refresh
+      ethPriceCache.timestamp = now
       return ethPriceCache.price
     }
 
@@ -195,12 +216,11 @@ const respondWithKnowledge = async (
           userMessage: context.initialPrompt,
         })
 
-        // Call OpenAI
+        // Call OpenAI (WITHOUT json_object mode - it causes issues with code blocks)
         const completion = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
           temperature: 0.2,
           max_tokens: 2000,
-          response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: prompt },
             { role: 'user', content: context.initialPrompt },
