@@ -100,14 +100,16 @@ ${persona.rules.map((rule) => `- ${rule}`).join('\n')}
 **Context from this thread:**
 ${conversationSummary || 'This is the start of a new conversation.'}
 
-**Retrieved Knowledge (cite these by chunk ID!):**
+**Retrieved Knowledge from AGENTS.md (cite these by chunk ID!):**
 ${chunksFormatted}
+
+**IMPORTANT:** All chunks above are from AGENTS.md - the comprehensive 2400+ line Towns Bot SDK guide. Use ONLY this information to answer.
 
 **Current User Question:**
 ${userMessage}
 
 **Your Task:**
-Answer the user's question using ONLY the retrieved knowledge chunks from AGENTS.md and other sources. Be DIRECT, CLEAR, and ACTIONABLE.
+Answer the user's question using ONLY the retrieved knowledge chunks from AGENTS.md (your primary and most comprehensive source). AGENTS.md contains 2400+ lines of complete @towns-protocol/bot documentation. Be DIRECT, CLEAR, and ACTIONABLE.
 
 **CRITICAL: Response Format**
 
@@ -116,24 +118,38 @@ You MUST return ONLY a JSON object in this EXACT format (no code blocks, just ra
 { "answer": "Your answer text here", "references": ["chunk1", "chunk2"] }
 
 **Answer Formatting Guidelines:**
-- Use markdown for formatting (**bold**, bullet points, etc.)
-- For code examples, use inline code \`like this\` or code blocks 
-- Start with direct answer, then provide details
-- Be conversational and helpful
-- Include specific examples from AGENTS.md when relevant
 
-**IMPORTANT: Code Examples**
-When including code examples in your answer, escape them properly or use inline code notation. DO NOT break the JSON structure.
+Use markdown to make answers EASY TO READ:
+- **Bold headings** for sections: **Setup Steps:**, **Key Points:**
+- Bullet points (•) for lists
+- Line breaks between paragraphs (\\n\\n)
+- Inline code (backticks) for function names, variables, commands
+- Numbered lists for step-by-step instructions
 
-Example of good answer format:
-"To create a bot, you need: **1. Credentials** Get APP_PRIVATE_DATA and JWT_SECRET. **2. Initialize** Use makeTownsBot() function. **3. Add handlers** Register event handlers like onMessage."
+**Structure Your Answer:**
+1. Start with direct answer (2-3 sentences)
+2. Break into clear sections with **headings**
+3. Use bullet points for key information
+4. Provide code examples when relevant
+5. End with any warnings or tips
+
+**Code Examples:**
+Keep code snippets short and inline when possible. Use format like:
+"Call makeTownsBot(privateData, jwtSecret) to initialize your bot"
+
+For longer examples, describe the code flow rather than pasting full code blocks.
+
+**Example of GOOD formatting:**
+"To build a bot:\\n\\n**Quick Setup:**\\n• Get your APP_PRIVATE_DATA credentials\\n• Set up JWT_SECRET for webhooks\\n• Initialize with makeTownsBot()\\n\\n**Key Steps:**\\n1. Create event handlers using bot.onMessage()\\n2. Start the webhook server\\n3. Register your webhook URL\\n\\n**Important:** Bots are stateless - store context in a database!"
 
 **Critical Rules:**
 - Return valid JSON only (no extra text before/after)
-- ONLY use information from the retrieved chunks (primarily from AGENTS.md)
-- Include relevant chunk IDs in references array
-- If you can't answer with retrieved knowledge, say so honestly
-- Keep answers under 1000 words`
+- ONLY use information from AGENTS.md chunks shown above - DO NOT make up information
+- AGENTS.md is your ONLY source - it has EVERYTHING about @towns-protocol/bot
+- Include relevant chunk IDs in references array (from the chunks shown above)
+- If AGENTS.md chunks don't cover the question, say so honestly
+- Keep answers under 1000 words but make them comprehensive
+- Use clear formatting with headings, bullets, and line breaks`
 }
 
 /**
